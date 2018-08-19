@@ -94,11 +94,296 @@ app.post('/upload', function(req, res){
     // parse the incoming request containing the form data
     form.parse(req);
     res.json({success:true});
-
 });
 
 app.post('/api/register',registrationController.register);
+
 app.post('/api/login',   registrationController.login);
+
+app.post('/api/update-device-info', (req, res) => {
+
+    var device_id   = req.body.device_id;
+    var device_info = req.body.device_info;
+    var fcm_token   = req.body.fcm_token;
+    var user_id     = req.body.user_id;
+
+    var qry = "SELECT * FROM device_info where device_id ='"+device_id+"'";
+
+    connection.query(qry, null, function(err, rows){
+        var c=0;
+        if (err)
+            c=0;
+        else  if (rows.length) {
+            c = 1
+        }
+        console.log("update-device-info:   device_id:"+device_id +"  device_info:"+device_info+" fcm_token:"+fcm_token+"  user_id:"+user_id);
+        if(c===0){
+            var insertQuery = "INSERT INTO device_info (device_id,device_info,fcm_token,user_id) values (?,?,?,?)";
+            connection.query(
+                insertQuery,
+                [
+                    device_id,
+                    device_info,
+                    fcm_token,
+                    user_id!==null?user_id:0
+                ],
+                function(err, rows) {
+                    if (err) {
+                        console.error(err);
+                        res.json({
+                            status: false,
+                            message: 'there are some error with query'
+                        })
+                    } else {
+                        res.json({
+                            status: true,
+                            message: 'device info added successfully'
+                        })
+                    }
+                });
+        }else{
+            insertQuery = "update device_info set fcm_token =? where device_id=?";
+
+            connection.query(
+                insertQuery,
+                [
+                    fcm_token,
+                    device_id
+                ],
+                function(err, rows) {
+                    if (err) {
+                        console.error(err);
+                        res.json({
+                            status: false,
+                            message: 'there are some error with query'
+                        })
+                    } else {
+                        res.json({
+                            status: true,
+                            message: 'device info added successfully'
+                        })
+                    }
+                });
+        }
+    });
+});
+
+app.post('/api/add-news', (req, res) => {
+
+    try {
+        var title = req.body.title;
+        var sub_title = req.body.sub_title;
+        var news_type = req.body.news_type;
+        var news_label = req.body.news_label;
+        var source_name = req.body.source_name;
+        var source_link = req.body.source_link;
+        var description = req.body.description;
+        var thumb_url = req.body.thumb_url;
+
+        switch (news_type) {
+            case 'IMAGE_TEXT':
+                image_url = req.body.image_url;
+                video_url = "";
+                youtube_link = "";
+                gallery1 = "";
+                gallery2 = "";
+                break;
+            case 'VIDEO_TEXT':
+                image_url = "";
+                video_url = req.body.video_url;
+                youtube_link = "";
+                gallery1 = "";
+                gallery2 = "";
+                break;
+            case 'YOUTUBE_TEXT':
+                image_url = "";
+                video_url = "";
+                youtube_link = req.body.youtube_link;
+                gallery1 = "";
+                gallery2 = "";
+                break;
+            case 'IMAGE_GALLERY_TYPE1':
+                image_url = "";
+                video_url = "";
+                youtube_link = "";
+                gallery1 = req.body.gallery1;
+                gallery2 = "";
+                break;
+            case 'IMAGE_GALLERY_TYPE2':
+                image_url = "";
+                video_url = "";
+                youtube_link = "";
+                gallery1 = "";
+                gallery2 = req.body.gallery2;
+                break;
+        }
+        var insertQuery = "INSERT INTO news (" +
+            "title,sub_title,news_type,news_label,source_name,source_link,description,thumb_url," +
+            "image_url,video_url,youtube_link,gallery1,gallery2) " +
+            "values (?,?,?,?,?,?,?,?, ?,?,?,?,?)";
+        connection.query(
+            insertQuery,
+            [
+                title,
+                sub_title,
+                news_type,
+                news_label,
+                
+                source_name,
+                source_link,
+                description,
+                thumb_url,
+
+                image_url,
+                video_url,
+                youtube_link,
+                gallery1,
+                gallery2
+            ],
+            function (err, rows) {
+                if (err) {
+                    console.error(err);
+                    res.json({
+                        status: false,
+                        message: 'there are some error with query'
+                    })
+                } else {
+                    res.json({
+                        status: true,
+                        message: 'News added successfully'
+                    })
+                }
+            });
+    }catch (e) {
+        res.json({
+            status: false,
+            message: 'input field is missing'
+        })
+    }
+});
+
+app.get('/api/news', (req, res) => {
+    console.log(req.body.name);
+
+    console.log("news data: "+req.body +"   "+JSON.stringify(req.body)+"   ====> ");
+    var today = new Date();
+
+    connection.query("SELECT * FROM news  order by date desc",null, function(err, rows){
+        if (err){
+            console.error(err);
+            res.json({
+                status:false,
+                message:'there are some error with query'
+            });
+
+        }else  if (rows.length) {
+            var list = {};
+            for (var i = 0;i < rows.length; i++) {
+                var label = rows[i].news_label;
+                var obj = {
+                    title: rows[i].title,
+                    sub_title: rows[i].sub_title,
+                    news_type: rows[i].news_type,
+                    news_label: rows[i].news_label,
+
+                    source_name: rows[i].source_name,
+                    source_link: rows[i].source_link,
+                    description: rows[i].description,
+                    thumb_url: rows[i].thumb_url,
+
+                    image_url: rows[i].image_url,
+                    video_url: rows[i].video_url,
+                    youtube_link: rows[i].youtube_link,
+                    gallery1: rows[i].gallery1,
+                    gallery2: rows[i].gallery2,
+                    date: rows[i].date
+                };
+
+                console.log("news data:==> " + label + "  ==> " + list);
+                if (label.indexOf(",") > -1) {
+                    for (var k = 0; k < label.split(",").length; k++) {
+                        var news_label = label.split(",")[k];
+
+                        news_label = news_label.trim().toLowerCase();
+                        if (!Array.isArray( list[news_label] )) {
+                            list[news_label]= [];
+                        }
+
+                        console.log("==> " + news_label + "  ==> " + list+"   "+obj+"   ->"+list[news_label]);
+                        list[news_label].push(obj);
+
+                    }
+                }else{
+
+                    label = label.trim().toLowerCase();
+                    if (!Array.isArray( list[label] )) {
+                        list[label]= [];
+                    }
+
+                    console.log("==> " + label + "  ==> " + list+"   "+obj+"   ->"+list[label]);
+                    list[label].push(obj);
+                }
+            }
+
+            var data = {
+                status:true,
+                list:list,
+                message:'success'
+            };
+            //connection.end();
+            res.end(JSON.stringify(data));
+        } else {
+            var data = {
+                status:true,
+                message:'manufacture list is empty'
+            };
+            //connection.end();
+            res.end(JSON.stringify(data));
+        }
+    });
+});
+
+app.post('/api/manufactures', (req, res) => {
+    console.log(req.body.name);
+
+    console.log("manufactures data: "+req.body +"   "+JSON.stringify(req.body)+"   ====> ");
+    var today = new Date();
+
+    connection.query("SELECT * FROM manufactures",null, function(err, rows){
+        if (err){
+            console.error(err);
+            res.json({
+                status:false,
+                message:'there are some error with query'
+            });
+
+        }else  if (rows.length) {
+            var manufacture_list = [];
+
+            for (var i = 0;i < rows.length; i++) {
+                manufacture_list.push({
+                    id: rows[i].id,
+                    name: rows[i].name,
+                });
+            }
+
+            var data = {
+                status:true,
+                list:manufacture_list,
+                message:'success'
+            };
+            //connection.end();
+            res.end(JSON.stringify(data));
+        } else {
+            var data = {
+                status:true,
+                message:'manufacture list is empty'
+            };
+            //connection.end();
+            res.end(JSON.stringify(data));
+        }
+    });
+});
 
 app.post('/api/add-manufacture', (req, res) => {
     console.log(req.body.name);
@@ -544,7 +829,6 @@ app.post('/api/showrooms', (req, res) => {
         }
     });
 });
-//app.post('/api/login1',   agentController.login);
 
 // launch ======================================================================
 app.listen(port);
